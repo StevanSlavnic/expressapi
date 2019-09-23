@@ -1,6 +1,8 @@
 import Location from "./../models/location";
 import mongoose from "mongoose";
 import uuidv1 from "uuid/v1";
+import url from "url";
+import querystring from "querystring";
 
 /**
  * @swagger
@@ -35,10 +37,14 @@ import uuidv1 from "uuid/v1";
  */
 export const create = (req, res, done) => {
   var location = new Location({
+    id: uuidv1(),
     title: req.body.title,
     description: req.body.description,
     address: req.body.address,
+    street_number: req.body.street_number,
     city: req.body.city,
+    state: req.body.state,
+    country: req.body.country,
     zip_code: req.body.zip_code
   });
   location
@@ -101,7 +107,7 @@ export const show = async function(req, res, next) {
 /**
  * @swagger
  * /locations/{id}:
- *   patch:
+ *   put:
  *     summary: Edit Location
  *     description:
  *       "Edit Location"
@@ -138,23 +144,26 @@ export const show = async function(req, res, next) {
  *               $ref: '#/definitions/Location'
  */
 export const edit = function(req, res, done) {
-  console.log(req.body);
-
   const id = { id: req.params.id };
 
   const update = {
     title: req.body.title,
     description: req.body.description,
     address: req.body.address,
+    street_number: req.body.street_number,
     city: req.body.city,
+    state: req.body.state,
+    country: req.body.country,
     zip_code: req.body.zip_code
   };
+
+  console.log(update);
 
   const location = Location.findOneAndUpdate(id, update, function(
     err,
     location
   ) {
-    res.send(location);
+    res.json(location);
   });
 
   console.log(location);
@@ -178,6 +187,13 @@ export const edit = function(req, res, done) {
  *           required: true
  *           description: Location id
  *     responses:
+ *       200:
+ *         description: OK!
+ *         schema:
+ *           type: object
+ *           properties:
+ *             location:
+ *               $ref: '#/definitions/Location'
  *       400:
  *         description: "Invalid location supplied"
  *       404:
@@ -188,14 +204,154 @@ export const edit = function(req, res, done) {
  *             location:
  *               $ref: '#/definitions/Location'
  */
-export const remove = async function(req, res, next) {
+export const remove = async function(req, res) {
   const id = { id: req.params.id };
 
-  const location = await Location.findOneAndDelete(id);
+  await Location.findOneAndDelete(id)
+    .exec()
+    .then(doc => {
+      if (!doc) {
+        return res.status(404).end();
+      }
+      return res.status(204).end();
+    })
+    .catch(err => next(err));
+};
 
-  console.log(location);
+/**
+ * @swagger
+ * /locations:
+ *   get:
+ *     summary: Show All Locations
+ *     description:
+ *       "Show All Locations"
+ *     tags:
+ *       - Locations
+ *     parameters:
+ *       - in: query
+ *         name: keyword
+ *         schema:
+ *           type: string
+ *           description: Return results for any string
+ *       - in: query
+ *         name: city
+ *         schema:
+ *           type: string
+ *           description: Return results for given city
+ *     responses:
+ *       200:
+ *         description: OK!
+ *         schema:
+ *           type: object
+ *           properties:
+ *             location:
+ *               $ref: '#/definitions/Location'
+ *       404:
+ *          description: Location not found
+ *          schema:
+ *            type: object
+ *            properties:
+ *             location:
+ *               $ref: '#/definitions/Location'
+ */
+export const all = async function(req, res, next) {
+  const keyword = req.query.keyword ? req.query.keyword : "";
+  const city = req.query.city ? req.query.city : "";
 
-  if (!location) {
-    return res.status(404).send();
+  if (keyword && city) {
+    await Location.find(
+      {
+        $or: [
+          { title: { $in: [new RegExp(keyword, "i")] } },
+          { description: { $in: [new RegExp(keyword, "i")] } },
+          { address: { $in: [new RegExp(keyword, "i")] } },
+          { street_number: { $in: [new RegExp(keyword, "i")] } },
+          { city: { $in: [new RegExp(city, "i")] } },
+          { state: { $in: [new RegExp(keyword, "i")] } },
+          { country: { $in: [new RegExp(keyword, "i")] } },
+          { zip_code: { $in: [new RegExp(keyword, "i")] } }
+        ]
+      },
+      function(err, locations) {
+        if (err) {
+          res.send("404");
+        }
+        res.json(locations);
+      }
+    );
+  } else if (keyword) {
+    await Location.find(
+      {
+        $or: [
+          { title: { $in: [new RegExp(keyword, "i")] } },
+          { description: { $in: [new RegExp(keyword, "i")] } },
+          { address: { $in: [new RegExp(keyword, "i")] } },
+          { street_number: { $in: [new RegExp(keyword, "i")] } },
+          { city: { $in: [new RegExp(keyword, "i")] } },
+          { state: { $in: [new RegExp(keyword, "i")] } },
+          { country: { $in: [new RegExp(keyword, "i")] } },
+          { zip_code: { $in: [new RegExp(keyword, "i")] } }
+        ]
+      },
+      function(err, locations) {
+        if (err) {
+          res.send("404");
+        }
+        res.json(locations);
+      }
+    );
+  } else if (city) {
+    await Location.find(
+      {
+        $or: [{ city: { $in: [new RegExp(city, "i")] } }]
+      },
+      function(err, locations) {
+        if (err) {
+          res.send("404");
+        }
+        res.json(locations);
+      }
+    );
+  } else {
+    await Location.find({}, function(err, locations) {
+      if (err) {
+        res.send("404");
+      }
+      res.json(locations);
+    });
   }
+
+  console.log({
+    keyword: new RegExp("^" + keyword + "$", "i"),
+    city: new RegExp("^" + city + "$", "i")
+  });
+
+  // await Location.find(
+  //   {
+  //     $or: [
+  //       { title: [keyword] },
+
+  //     ]
+  //   },
+  //   function(err, locations) {
+  //     if (err) {
+  //       res.send("404");
+  //     }
+  //     res.json(locations);
+  //   }
+  // );
+  console.log(
+    await Location.find({
+      $or: [
+        { title: { $in: [keyword] } },
+        { description: { $in: [keyword] } },
+        { address: { $in: [keyword] } },
+        { street_number: { $in: [keyword] } },
+        { city: { $in: [keyword] } },
+        { state: { $in: [keyword] } },
+        { country: { $in: [keyword] } },
+        { zip_code: { $in: [keyword] } }
+      ]
+    })
+  );
 };

@@ -12,9 +12,9 @@ import {
   create as locationCreate,
   show as locationShow,
   edit as locationEdit,
-  remove as locationRemove
+  remove as locationRemove,
+  all as locationAll
 } from "../controllers/locationController";
-// import Location from "./../models/location";
 
 const router = express.Router();
 var mongoose = require("mongoose");
@@ -35,7 +35,8 @@ router.post("/users/show", userShow);
 // Location controller routes
 router.post("/locations/create", locationCreate);
 router.get("/locations/:id", locationShow);
-router.patch("/locations/:id", locationEdit);
-router.patch("/locations/:id", locationRemove);
+router.put("/locations/:id", locationEdit);
+router.delete("/locations/:id", locationRemove);
+router.get("/locations", locationAll);
 
 export default router;
